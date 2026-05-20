@@ -579,7 +579,7 @@ analyzeBtn.addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: [`data:${mimeType};base64,${base64}`]
+        data: [{ url: `data:${mimeType};base64,${base64}` }]
       })
     });
 
@@ -589,82 +589,57 @@ analyzeBtn.addEventListener('click', async () => {
 
     setStep(3, 60);
 
-    // Step 2: Stream result using ReadableStream (Gradio 6 SSE)
+    // Step 2: Poll for result
     const resultRes = await fetch(`${HF_SPACE}/gradio_api/call/api_analyze/${eventId}`);
-    
+    const resultText = await resultRes.text();
+
     setStep(4, 85);
 
-    // Read SSE stream properly
+    // Parse SSE response — search from last line backwards
+    // to skip heartbeat {error: null} lines
+    const lines = resultText.split('\n');
     let resultData = null;
-    const reader = resultRes.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      
-      const lines = buffer.split('\n');
-      buffer = lines.pop(); // keep incomplete line
-      
-      for (const line of lines) {
-        const trimmed = line.trim();
-        if (trimmed.startsWith('data:')) {
-          try {
-            const jsonStr = trimmed.slice(5).trim();
-            const parsed = JSON.parse(jsonStr);
-            console.log('SSE data received:', parsed);
-
-            // Skip heartbeat/processing messages like {error: null}
-            if (parsed.error !== undefined && !parsed.output && !Array.isArray(parsed)) {
-              console.log('Skipping heartbeat:', parsed);
-              continue;
-            }
-
-            if (Array.isArray(parsed)) {
-              resultData = parsed;
-            } else if (parsed.output && parsed.output.data) {
-              resultData = parsed.output.data;
-            } else if (parsed.data && Array.isArray(parsed.data)) {
-              resultData = parsed.data;
-            }
-          } catch(e) {
-            console.log('Parse error on line:', trimmed, e);
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const line = lines[i].trim();
+      if (line.startsWith('data:')) {
+        try {
+          const parsed = JSON.parse(line.slice(5).trim());
+          if (Array.isArray(parsed)) {
+            resultData = parsed;
+            break;
           }
-        }
+        } catch {}
       }
-      if (resultData) break;
     }
 
-    console.log('Final resultData:', resultData);
-    if (!resultData || !Array.isArray(resultData)) throw new Error('No result from API');
+    console.log("Final resultData:", resultData);
+    if (!resultData) throw new Error('No result from API');
 
     setStep(4, 100);
 
     // ── Display Results ──
-    // gradio_analyze returns: [heatmap_img, top_finding, predictions_dict, report, status]
-const [heatmapB64, predictionsJson, report, topDisease, topProb, status] = resultData;
+    // api_analyze returns: [heatmap_b64, predictions_json, report, top_disease, top_prob, status]
+    const [heatmapB64, predictionsJson, report, topDisease, topProb, status] = resultData;
 
-// Heatmap from base64
-if (heatmapB64) {
-  const heatmapImg = document.getElementById('heatmap-img');
-  heatmapImg.src = `data:image/png;base64,${heatmapB64}`;
-  heatmapImg.style.display = 'block';
-  document.getElementById('heatmap-placeholder').style.display = 'none';
-}
+    // Heatmap — base64 PNG string
+    if (heatmapB64) {
+      const heatmapImg = document.getElementById('heatmap-img');
+      heatmapImg.src = `data:image/png;base64,${heatmapB64}`;
+      heatmapImg.style.display = 'block';
+      document.getElementById('heatmap-placeholder').style.display = 'none';
+    }
 
-// Diagnosis
-document.getElementById('diagnosis-name').textContent = topDisease || 'No Finding';
-document.getElementById('diagnosis-sub').textContent = 'AI model prediction — consult a radiologist';
-document.getElementById('prob-value').textContent = topProb ? `${(topProb * 100).toFixed(1)}%` : '—';
+    // Diagnosis
+    document.getElementById('diagnosis-name').textContent = topDisease || 'No Finding';
+    document.getElementById('diagnosis-sub').textContent = 'AI model prediction — consult a radiologist';
+    document.getElementById('prob-value').textContent = topProb ? `${(topProb * 100).toFixed(1)}%` : '—';
 
-// Disease bars
-try {
-  const predictions = JSON.parse(predictionsJson || '{}');
-  const diseaseList = document.getElementById('disease-list');
-  diseaseList.innerHTML = '';
-  Object.entries(predictions).slice(0, 5).forEach(([disease, prob]) => {
+    // Disease bars — predictions is JSON string, parse it
+    try {
+      const predictions = JSON.parse(predictionsJson || '{}');
+      const diseaseList = document.getElementById('disease-list');
+      diseaseList.innerHTML = '';
+      Object.entries(predictions).slice(0, 5).forEach(([disease, prob]) => {
         const pct = (prob * 100).toFixed(1);
         const cls = prob >= 0.5 ? 'high' : prob >= 0.3 ? 'medium' : '';
         diseaseList.innerHTML += `
