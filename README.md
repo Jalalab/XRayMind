@@ -36,7 +36,7 @@ XRayMind is an end-to-end AI-powered chest X-ray analysis system that detects 14
 | Report Generation | LLaMA 4 Scout via Groq API |
 | Backend | Gradio on HuggingFace Spaces |
 | Frontend | HTML/CSS/JS on GitHub Pages |
-| Training | Kaggle GPU P100 |
+| Training | Kaggle GPU T4 x 2 |
 
 ---
 
