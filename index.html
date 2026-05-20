@@ -615,7 +615,13 @@ analyzeBtn.addEventListener('click', async () => {
             const jsonStr = trimmed.slice(5).trim();
             const parsed = JSON.parse(jsonStr);
             console.log('SSE data received:', parsed);
-            
+
+            // Skip heartbeat/processing messages like {error: null}
+            if (parsed.error !== undefined && !parsed.output && !Array.isArray(parsed)) {
+              console.log('Skipping heartbeat:', parsed);
+              continue;
+            }
+
             if (Array.isArray(parsed)) {
               resultData = parsed;
             } else if (parsed.output && parsed.output.data) {
