@@ -618,13 +618,20 @@ analyzeBtn.addEventListener('click', async () => {
     setStep(4, 100);
 
     // ── Display Results ──
-    // api_analyze returns: [heatmap_b64, predictions_json, report, top_disease, top_prob, status]
-    const [heatmapB64, predictionsJson, report, topDisease, topProb, status] = resultData;
+    // api_analyze returns: [heatmap, predictions_json, report, top_disease, top_prob, status]
+    const [heatmapB64, predictionsJson, report, topDisease, topProbRaw, status] = resultData;
 
-    // Heatmap — base64 PNG string
+    // Parse top probability — could be string or number
+    const topProb = typeof topProbRaw === 'number' ? topProbRaw : parseFloat(topProbRaw) || 0;
+
+    // Heatmap — Gradio returns {path: '/tmp/gradio/...'} or base64
     if (heatmapB64) {
       const heatmapImg = document.getElementById('heatmap-img');
-      heatmapImg.src = `data:image/png;base64,${heatmapB64}`;
+      if (typeof heatmapB64 === 'object' && heatmapB64.path) {
+        heatmapImg.src = `${HF_SPACE}/gradio_api/file=${heatmapB64.path}`;
+      } else {
+        heatmapImg.src = `data:image/png;base64,${heatmapB64}`;
+      }
       heatmapImg.style.display = 'block';
       document.getElementById('heatmap-placeholder').style.display = 'none';
     }
@@ -634,9 +641,11 @@ analyzeBtn.addEventListener('click', async () => {
     document.getElementById('diagnosis-sub').textContent = 'AI model prediction — consult a radiologist';
     document.getElementById('prob-value').textContent = topProb ? `${(topProb * 100).toFixed(1)}%` : '—';
 
-    // Disease bars — predictions is JSON string, parse it
+    // Disease bars — predictions may be JSON string or dict object
     try {
-      const predictions = JSON.parse(predictionsJson || '{}');
+      const predictions = typeof predictionsJson === 'string'
+        ? JSON.parse(predictionsJson || '{}')
+        : predictionsJson || {};
       const diseaseList = document.getElementById('disease-list');
       diseaseList.innerHTML = '';
       Object.entries(predictions).slice(0, 5).forEach(([disease, prob]) => {
