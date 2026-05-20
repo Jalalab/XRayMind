@@ -579,7 +579,7 @@ analyzeBtn.addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: [`data:${mimeType};base64,${base64}`]
+        data: [{ url: `data:${mimeType};base64,${base64}` }]
       })
     });
 
