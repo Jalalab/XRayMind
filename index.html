@@ -589,31 +589,31 @@ analyzeBtn.addEventListener('click', async () => {
 
     setStep(3, 60);
 
-    // Step 2: Poll for result
-    const resultRes = await fetch(`${HF_SPACE}/gradio_api/call/api_analyze/${eventId}`);
-    const resultText = await resultRes.text();
-
-    setStep(4, 85);
-
-    // Parse SSE response — search from last line backwards
-    // to skip heartbeat {error: null} lines
-    const lines = resultText.split('\n');
-    let resultData = null;
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i].trim();
-      if (line.startsWith('data:')) {
+    // Step 2: Stream SSE result using EventSource
+    const resultData = await new Promise((resolve, reject) => {
+      const evtSource = new EventSource(
+        `${HF_SPACE}/gradio_api/call/api_analyze/${eventId}`
+      );
+      evtSource.onmessage = (e) => {
+        console.log("SSE message:", e.data);
         try {
-          const parsed = JSON.parse(line.slice(5).trim());
+          const parsed = JSON.parse(e.data);
           if (Array.isArray(parsed)) {
-            resultData = parsed;
-            break;
+            evtSource.close();
+            resolve(parsed);
           }
         } catch {}
-      }
-    }
-
-    console.log("Final resultData:", resultData);
-    if (!resultData) throw new Error('No result from API');
+      };
+      evtSource.onerror = (e) => {
+        evtSource.close();
+        reject(new Error('SSE connection failed'));
+      };
+      // 3 minute timeout — report generation can be slow
+      setTimeout(() => {
+        evtSource.close();
+        reject(new Error('Request timed out — please try again'));
+      }, 180000);
+    });
 
     setStep(4, 100);
 
