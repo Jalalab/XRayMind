@@ -589,33 +589,49 @@ analyzeBtn.addEventListener('click', async () => {
 
     setStep(3, 60);
 
-    // Step 2: Poll for result
+    // Step 2: Stream result using ReadableStream (Gradio 6 SSE)
     const resultRes = await fetch(`${HF_SPACE}/gradio_api/call/api_analyze/${eventId}`);
-    const resultText = await resultRes.text();
-
+    
     setStep(4, 85);
 
-    // Parse SSE response — Gradio 6 format
-    const lines = resultText.split('\n');
+    // Read SSE stream properly
     let resultData = null;
-    for (const line of lines) {
-      if (line.startsWith('data:')) {
-        try {
-          const parsed = JSON.parse(line.slice(5).trim());
-          if (Array.isArray(parsed)) {
-            resultData = parsed;
-            break;
-          } else if (parsed.output && parsed.output.data) {
-            resultData = parsed.output.data;
-            break;
-          } else if (parsed.data && Array.isArray(parsed.data)) {
-            resultData = parsed.data;
-            break;
+    const reader = resultRes.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      
+      const lines = buffer.split('\n');
+      buffer = lines.pop(); // keep incomplete line
+      
+      for (const line of lines) {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('data:')) {
+          try {
+            const jsonStr = trimmed.slice(5).trim();
+            const parsed = JSON.parse(jsonStr);
+            console.log('SSE data received:', parsed);
+            
+            if (Array.isArray(parsed)) {
+              resultData = parsed;
+            } else if (parsed.output && parsed.output.data) {
+              resultData = parsed.output.data;
+            } else if (parsed.data && Array.isArray(parsed.data)) {
+              resultData = parsed.data;
+            }
+          } catch(e) {
+            console.log('Parse error on line:', trimmed, e);
           }
-        } catch {}
+        }
       }
+      if (resultData) break;
     }
 
+    console.log('Final resultData:', resultData);
     if (!resultData || !Array.isArray(resultData)) throw new Error('No result from API');
 
     setStep(4, 100);
