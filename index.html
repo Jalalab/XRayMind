@@ -1,0 +1,1095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>XRayMind — AI Radiology Assistant</title>
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #080c14;
+      --bg2: #0d1220;
+      --bg3: #111827;
+      --border: rgba(99,179,237,0.12);
+      --blue: #63b3ed;
+      --blue-bright: #90cdf4;
+      --cyan: #76e4f7;
+      --red: #fc8181;
+      --green: #68d391;
+      --text: #e2e8f0;
+      --muted: #718096;
+      --card: rgba(255,255,255,0.03);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* ── NOISE OVERLAY ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.4;
+    }
+
+    /* ── HERO GLOW ── */
+    .glow-orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb1 { width: 600px; height: 600px; background: rgba(99,179,237,0.07); top: -200px; left: -100px; }
+    .orb2 { width: 400px; height: 400px; background: rgba(118,228,247,0.05); top: 100px; right: -100px; }
+    .orb3 { width: 500px; height: 500px; background: rgba(99,179,237,0.04); bottom: -100px; left: 50%; transform: translateX(-50%); }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 20px 40px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(8,12,20,0.8);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.1rem;
+      color: var(--blue-bright);
+      letter-spacing: -0.5px;
+      text-decoration: none;
+    }
+
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-decoration: none;
+      transition: color 0.2s;
+      letter-spacing: 0.05em;
+    }
+    .nav-links a:hover { color: var(--blue); }
+
+    .nav-cta {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      padding: 8px 20px;
+      background: transparent;
+      border: 1px solid var(--blue);
+      color: var(--blue);
+      border-radius: 4px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .nav-cta:hover { background: var(--blue); color: var(--bg); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 120px 40px 80px;
+      overflow: hidden;
+    }
+
+    .hero-inner { position: relative; z-index: 1; max-width: 860px; }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--cyan);
+      border: 1px solid rgba(118,228,247,0.25);
+      padding: 6px 16px;
+      border-radius: 100px;
+      margin-bottom: 32px;
+      letter-spacing: 0.08em;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .badge-dot {
+      width: 6px; height: 6px;
+      background: var(--cyan);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(3rem, 7vw, 5.5rem);
+      line-height: 1.0;
+      letter-spacing: -2px;
+      color: #fff;
+      margin-bottom: 12px;
+      animation: fadeUp 0.6s 0.1s ease both;
+    }
+
+    h1 span {
+      background: linear-gradient(135deg, var(--blue) 0%, var(--cyan) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin: 0 auto 48px;
+      line-height: 1.7;
+      font-weight: 300;
+      animation: fadeUp 0.6s 0.2s ease both;
+    }
+
+    .hero-actions {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+      animation: fadeUp 0.6s 0.3s ease both;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      background: var(--blue);
+      color: var(--bg);
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.9rem;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
+    .btn-primary:hover { background: var(--blue-bright); transform: translateY(-2px); box-shadow: 0 8px 30px rgba(99,179,237,0.3); }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 32px;
+      background: transparent;
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--blue); color: var(--blue); transform: translateY(-2px); }
+
+    /* ── STATS STRIP ── */
+    .stats-strip {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      margin-top: 80px;
+      animation: fadeUp 0.6s 0.4s ease both;
+    }
+
+    .stat {
+      padding: 28px 48px;
+      border: 1px solid var(--border);
+      text-align: center;
+      background: var(--card);
+      backdrop-filter: blur(10px);
+    }
+    .stat:first-child { border-radius: 8px 0 0 8px; }
+    .stat:last-child { border-radius: 0 8px 8px 0; }
+    .stat + .stat { border-left: none; }
+
+    .stat-num {
+      font-family: 'Syne', sans-serif;
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--blue-bright);
+      display: block;
+      letter-spacing: -1px;
+    }
+    .stat-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.68rem;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 4px;
+      display: block;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── SECTION ── */
+    section {
+      position: relative;
+      z-index: 1;
+      padding: 100px 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--blue);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h2 {
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: clamp(2rem, 4vw, 3rem);
+      letter-spacing: -1.5px;
+      color: #fff;
+      margin-bottom: 16px;
+    }
+
+    .section-desc {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.7;
+      font-weight: 300;
+      margin-bottom: 60px;
+    }
+
+    /* ── PIPELINE STEPS ── */
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .pipe-step {
+      background: var(--bg2);
+      padding: 40px 32px;
+      transition: background 0.3s;
+    }
+    .pipe-step:hover { background: var(--bg3); }
+
+    .pipe-num {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--blue);
+      letter-spacing: 0.1em;
+      margin-bottom: 20px;
+      display: block;
+    }
+
+    .pipe-icon {
+      font-size: 2rem;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .pipe-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1.1rem;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .pipe-desc {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── TECH STACK ── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+    }
+
+    .tech-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px 24px;
+      transition: all 0.3s;
+      cursor: default;
+    }
+    .tech-card:hover {
+      border-color: rgba(99,179,237,0.3);
+      background: rgba(99,179,237,0.04);
+      transform: translateY(-4px);
+    }
+
+    .tech-icon { font-size: 1.8rem; margin-bottom: 14px; display: block; }
+
+    .tech-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .tech-detail {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ── RESULTS ── */
+    .results-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+    }
+
+    .result-card.highlight {
+      border-color: rgba(99,179,237,0.3);
+      background: rgba(99,179,237,0.04);
+    }
+
+    .result-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--blue);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+
+    .auc-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .auc-label {
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+    }
+
+    .auc-bar-wrap {
+      flex: 1;
+      margin: 0 16px;
+      height: 4px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .auc-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      border-radius: 2px;
+      transition: width 1s ease;
+    }
+
+    .auc-val {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--blue-bright);
+      min-width: 36px;
+      text-align: right;
+    }
+
+    .big-metric {
+      font-family: 'Syne', sans-serif;
+      font-size: 4rem;
+      font-weight: 800;
+      color: var(--blue-bright);
+      letter-spacing: -2px;
+      line-height: 1;
+    }
+
+    .big-metric-label {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-top: 8px;
+    }
+
+    .comparison-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .comparison-row:last-child { border-bottom: none; }
+
+    .comp-name { font-size: 0.85rem; color: var(--text); }
+    .comp-auc  {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--blue);
+    }
+    .comp-auc.mine { color: var(--cyan); font-weight: 500; }
+    .comp-tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.65rem;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: rgba(118,228,247,0.1);
+      color: var(--cyan);
+      border: 1px solid rgba(118,228,247,0.2);
+    }
+
+    /* ── DEMO PREVIEW ── */
+    .demo-frame {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--bg2);
+    }
+
+    .demo-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 20px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .demo-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .demo-dot:nth-child(1) { background: #fc8181; }
+    .demo-dot:nth-child(2) { background: #f6e05e; }
+    .demo-dot:nth-child(3) { background: #68d391; }
+
+    .demo-url {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-left: 12px;
+    }
+
+    .demo-content {
+      padding: 60px 40px;
+      text-align: center;
+    }
+
+    .demo-placeholder {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      text-align: left;
+    }
+
+    .demo-panel {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 24px;
+    }
+
+    .demo-panel-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--blue);
+      letter-spacing: 0.08em;
+      margin-bottom: 16px;
+    }
+
+    .fake-xray {
+      width: 100%;
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #1a2332 0%, #0d1520 50%, #1a2332 100%);
+      border-radius: 4px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .fake-xray svg { opacity: 0.3; }
+
+    .fake-heatmap {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 4px;
+      background: radial-gradient(ellipse at 35% 65%, #e53e3e 0%, #ed8936 20%, #ecc94b 35%, #48bb78 55%, #4299e1 70%, #553c9a 85%, #1a2332 100%);
+      opacity: 0.85;
+    }
+
+    .bar-list { display: flex; flex-direction: column; gap: 10px; }
+
+    .fake-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    .fake-bar-track {
+      flex: 1;
+      height: 3px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 2px;
+    }
+
+    .fake-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      border-radius: 2px;
+    }
+
+    /* ── ABOUT ── */
+    .about-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 60px;
+      align-items: center;
+    }
+
+    .about-text h2 { margin-bottom: 20px; }
+
+    .about-text p {
+      color: var(--muted);
+      line-height: 1.8;
+      font-size: 0.95rem;
+      margin-bottom: 16px;
+    }
+
+    .tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 24px;
+    }
+
+    .tag {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      padding: 6px 14px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .author-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+    }
+
+    .author-avatar {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, var(--blue), var(--cyan));
+      border-radius: 50%;
+      margin: 0 auto 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 1.8rem;
+      color: var(--bg);
+    }
+
+    .author-name {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .author-title {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+
+    .author-links {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .author-link {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      padding: 8px 18px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--muted);
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .author-link:hover { border-color: var(--blue); color: var(--blue); }
+
+    /* ── DISCLAIMER ── */
+    .disclaimer-bar {
+      background: rgba(252,129,74,0.06);
+      border: 1px solid rgba(252,129,74,0.2);
+      border-radius: 8px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-top: 60px;
+      font-size: 0.82rem;
+      color: rgba(252,129,74,0.8);
+      line-height: 1.6;
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px;
+      text-align: center;
+      font-family: 'DM Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+      position: relative;
+      z-index: 1;
+    }
+
+    footer span { color: var(--blue); }
+
+    /* ── SCROLL ANIMATIONS ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(30px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* ── DIVIDER ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 0;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 768px) {
+      nav { padding: 16px 20px; }
+      .nav-links { display: none; }
+      section { padding: 60px 20px; }
+      .pipeline { grid-template-columns: 1fr; }
+      .tech-grid { grid-template-columns: 1fr 1fr; }
+      .results-grid { grid-template-columns: 1fr; }
+      .about-grid { grid-template-columns: 1fr; }
+      .demo-placeholder { grid-template-columns: 1fr; }
+      .stats-strip { flex-direction: column; }
+      .stat { border-radius: 0 !important; border-left: 1px solid var(--border) !important; }
+      .stat:first-child { border-radius: 8px 8px 0 0 !important; }
+      .stat:last-child { border-radius: 0 0 8px 8px !important; border-top: none !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a class="nav-logo" href="#">XRayMind</a>
+    <ul class="nav-links">
+      <li><a href="#pipeline">Pipeline</a></li>
+      <li><a href="#stack">Stack</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#about">About</a></li>
+    </ul>
+    <a class="nav-cta" href="https://huggingface.co/spaces/pial17/XRayMind" target="_blank">Try Demo →</a>
+  </nav>
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="glow-orb orb1"></div>
+    <div class="glow-orb orb2"></div>
+    <div class="glow-orb orb3"></div>
+    <div class="hero-inner">
+      <div class="hero-badge">
+        <span class="badge-dot"></span>
+        LIVE DEMO AVAILABLE
+      </div>
+      <h1>
+        <span>XRay</span>Mind<br/>
+        AI Radiology<br/>Assistant
+      </h1>
+      <p class="hero-sub">
+        Automated chest X-ray analysis with Grad-CAM visualization
+        and LLaMA-powered clinical report generation.
+        DenseNet121 trained on 112,120 images.
+      </p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="https://huggingface.co/spaces/pial17/XRayMind" target="_blank">
+          🔬 Try the Live Demo
+        </a>
+        <a class="btn-secondary" href="https://github.com/pial17/XRayMind" target="_blank">
+          ⌥ View on GitHub
+        </a>
+      </div>
+
+      <div class="stats-strip">
+        <div class="stat">
+          <span class="stat-num">0.77</span>
+          <span class="stat-label">Mean AUC</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">14</span>
+          <span class="stat-label">Pathologies</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">112K</span>
+          <span class="stat-label">Training Images</span>
+        </div>
+        <div class="stat">
+          <span class="stat-num">3</span>
+          <span class="stat-label">AI Models</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- PIPELINE -->
+  <section id="pipeline">
+    <div class="reveal">
+      <p class="section-label">// How it works</p>
+      <h2>End-to-End Pipeline</h2>
+      <p class="section-desc">Three AI systems working in sequence to analyze a chest X-ray and produce a clinical-grade report.</p>
+    </div>
+    <div class="pipeline reveal">
+      <div class="pipe-step">
+        <span class="pipe-num">01 — CLASSIFY</span>
+        <span class="pipe-icon">🧠</span>
+        <div class="pipe-title">DenseNet121 Classifier</div>
+        <p class="pipe-desc">CheXNet-style architecture trained on NIH ChestX-ray14. Outputs probability scores for 14 pathologies including Atelectasis, Pneumonia, Effusion, and more.</p>
+      </div>
+      <div class="pipe-step">
+        <span class="pipe-num">02 — VISUALIZE</span>
+        <span class="pipe-icon">🔥</span>
+        <div class="pipe-title">Grad-CAM Heatmap</div>
+        <p class="pipe-desc">Gradient-weighted Class Activation Mapping highlights which regions of the X-ray the model focused on for its top prediction — making AI decisions interpretable.</p>
+      </div>
+      <div class="pipe-step">
+        <span class="pipe-num">03 — REPORT</span>
+        <span class="pipe-icon">📋</span>
+        <div class="pipe-title">LLaMA 4 Scout Report</div>
+        <p class="pipe-desc">Meta's LLaMA 4 Scout (17B) receives the X-ray image and AI predictions, then generates a structured radiology report with Findings, Impression, Severity, and Recommendations.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider"/>
+
+  <!-- DEMO PREVIEW -->
+  <section id="demo">
+    <div class="reveal">
+      <p class="section-label">// Interface</p>
+      <h2>Live Application</h2>
+      <p class="section-desc">Upload any chest X-ray and get a full AI-powered analysis in under 30 seconds.</p>
+    </div>
+    <div class="demo-frame reveal">
+      <div class="demo-bar">
+        <div class="demo-dot"></div>
+        <div class="demo-dot"></div>
+        <div class="demo-dot"></div>
+        <span class="demo-url">huggingface.co/spaces/pial17/XRayMind</span>
+      </div>
+      <div class="demo-content">
+        <div class="demo-placeholder">
+          <div>
+            <div class="demo-panel">
+              <div class="demo-panel-title">📤 INPUT X-RAY</div>
+              <div class="fake-xray">
+                <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                  <rect x="15" y="8" width="50" height="64" rx="4" stroke="white" stroke-width="1.5"/>
+                  <circle cx="40" cy="32" r="14" stroke="white" stroke-width="1.5"/>
+                  <path d="M26 52 Q40 44 54 52" stroke="white" stroke-width="1.5"/>
+                  <line x1="40" y1="18" x2="40" y2="46" stroke="white" stroke-width="1"/>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="demo-panel">
+              <div class="demo-panel-title">🔥 GRAD-CAM HEATMAP</div>
+              <div class="fake-heatmap"></div>
+            </div>
+          </div>
+          <div>
+            <div class="demo-panel">
+              <div class="demo-panel-title">📊 DISEASE PROBABILITIES</div>
+              <div class="bar-list">
+                <div class="fake-bar-row">
+                  <span style="min-width:100px">Atelectasis</span>
+                  <div class="fake-bar-track"><div class="fake-bar-fill" style="width:51%"></div></div>
+                  <span>51%</span>
+                </div>
+                <div class="fake-bar-row">
+                  <span style="min-width:100px">Effusion</span>
+                  <div class="fake-bar-track"><div class="fake-bar-fill" style="width:21%"></div></div>
+                  <span>21%</span>
+                </div>
+                <div class="fake-bar-row">
+                  <span style="min-width:100px">Infiltration</span>
+                  <div class="fake-bar-track"><div class="fake-bar-fill" style="width:16%"></div></div>
+                  <span>16%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="demo-panel">
+              <div class="demo-panel-title">📋 AI RADIOLOGY REPORT</div>
+              <div style="font-size:0.78rem; color:var(--muted); line-height:1.7; font-family:'DM Mono',monospace;">
+                <div style="color:var(--blue);margin-bottom:8px;">FINDINGS:</div>
+                The chest X-ray shows evidence of atelectasis with 50.7% confidence. Possible pleural effusion at 21.3% warrants further correlation...
+                <div style="color:var(--blue);margin-top:12px;margin-bottom:8px;">IMPRESSION:</div>
+                Likely diagnosis: Atelectasis. Moderate severity...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider"/>
+
+  <!-- TECH STACK -->
+  <section id="stack">
+    <div class="reveal">
+      <p class="section-label">// Built with</p>
+      <h2>Technology Stack</h2>
+      <p class="section-desc">Production-grade ML pipeline combining computer vision, explainability, and large language models.</p>
+    </div>
+    <div class="tech-grid reveal">
+      <div class="tech-card">
+        <span class="tech-icon">🧠</span>
+        <div class="tech-name">DenseNet121</div>
+        <div class="tech-detail">CheXNet architecture<br/>Transfer learning<br/>ImageNet pretrained</div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">🔥</span>
+        <div class="tech-name">Grad-CAM</div>
+        <div class="tech-detail">Gradient-weighted CAM<br/>denseblock4 target<br/>Explainability layer</div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">🦙</span>
+        <div class="tech-name">LLaMA 4 Scout</div>
+        <div class="tech-detail">17B parameter model<br/>Vision + language<br/>Groq inference API</div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">🖼️</span>
+        <div class="tech-name">NIH ChestX-ray14</div>
+        <div class="tech-detail">112,120 X-rays<br/>14 pathologies<br/>Patient-level split</div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">⚡</span>
+        <div class="tech-name">PyTorch</div>
+        <div class="tech-detail">BCEWithLogitsLoss<br/>Cosine annealing<br/>Differential LR</div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">🎛️</span>
+        <div class="tech-name">Gradio</div>
+        <div class="tech-detail">Web interface<br/>Real-time inference<br/>HuggingFace Spaces</div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">📊</span>
+        <div class="tech-name">Training Setup</div>
+        <div class="tech-detail">10 epochs<br/>Adam optimizer<br/>Kaggle GPU P100</div>
+      </div>
+      <div class="tech-card">
+        <span class="tech-icon">🚀</span>
+        <div class="tech-name">Deployment</div>
+        <div class="tech-detail">HuggingFace Spaces<br/>CPU Basic (free)<br/>Public API</div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider"/>
+
+  <!-- RESULTS -->
+  <section id="results">
+    <div class="reveal">
+      <p class="section-label">// Performance</p>
+      <h2>Model Results</h2>
+      <p class="section-desc">Evaluated on a held-out test set with patient-level splitting to prevent data leakage.</p>
+    </div>
+    <div class="results-grid reveal">
+      <div class="result-card highlight">
+        <div class="result-title">Mean AUC Score</div>
+        <div class="big-metric">0.77</div>
+        <p class="big-metric-label">Across 14 pathologies</p>
+
+        <div style="margin-top:32px;">
+          <div class="comparison-row">
+            <span class="comp-name">CheXNet (Stanford 2017)</span>
+            <span class="comp-auc">0.841</span>
+          </div>
+          <div class="comparison-row">
+            <span class="comp-name">XRayMind <span class="comp-tag">This project</span></span>
+            <span class="comp-auc mine">0.770</span>
+          </div>
+          <div class="comparison-row">
+            <span class="comp-name">Random Baseline</span>
+            <span class="comp-auc" style="color:var(--muted)">0.500</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="result-card">
+        <div class="result-title">Per-disease AUC (Sample)</div>
+        <div class="bar-list" style="gap:14px;">
+          <div class="auc-row">
+            <span class="auc-label">Atelectasis</span>
+            <div class="auc-bar-wrap"><div class="auc-bar" style="width:82%"></div></div>
+            <span class="auc-val">~0.82</span>
+          </div>
+          <div class="auc-row">
+            <span class="auc-label">Cardiomegaly</span>
+            <div class="auc-bar-wrap"><div class="auc-bar" style="width:88%"></div></div>
+            <span class="auc-val">~0.88</span>
+          </div>
+          <div class="auc-row">
+            <span class="auc-label">Effusion</span>
+            <div class="auc-bar-wrap"><div class="auc-bar" style="width:86%"></div></div>
+            <span class="auc-val">~0.86</span>
+          </div>
+          <div class="auc-row">
+            <span class="auc-label">Pneumonia</span>
+            <div class="auc-bar-wrap"><div class="auc-bar" style="width:70%"></div></div>
+            <span class="auc-val">~0.70</span>
+          </div>
+          <div class="auc-row">
+            <span class="auc-label">Pneumothorax</span>
+            <div class="auc-bar-wrap"><div class="auc-bar" style="width:78%"></div></div>
+            <span class="auc-val">~0.78</span>
+          </div>
+          <div class="auc-row">
+            <span class="auc-label">Mass</span>
+            <div class="auc-bar-wrap"><div class="auc-bar" style="width:74%"></div></div>
+            <span class="auc-val">~0.74</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider"/>
+
+  <!-- ABOUT -->
+  <section id="about">
+    <div class="about-grid reveal">
+      <div class="about-text">
+        <p class="section-label">// About the project</p>
+        <h2>Built in 3 Weeks</h2>
+        <p>XRayMind is a complete end-to-end medical AI system — from raw dataset to deployed web application — built as a university research project at North South University, Bangladesh.</p>
+        <p>The project demonstrates that research-grade AI (CheXNet architecture) can be replicated, improved upon, and wrapped into a usable product with modern tools like Groq's LLaMA API and HuggingFace Spaces.</p>
+        <p>Notable engineering decisions include patient-level train/val/test splitting to prevent data leakage, differential learning rates for fine-tuning, and a manual Infiltration bias correction based on dataset analysis.</p>
+        <div class="tag-list">
+          <span class="tag">Computer Vision</span>
+          <span class="tag">Medical AI</span>
+          <span class="tag">Deep Learning</span>
+          <span class="tag">Explainable AI</span>
+          <span class="tag">LLM Integration</span>
+          <span class="tag">Transfer Learning</span>
+        </div>
+      </div>
+      <div>
+        <div class="author-card">
+          <div class="author-avatar">JA</div>
+          <div class="author-name">Jalal Abedin</div>
+          <div class="author-title">
+            Computer Science Student<br/>
+            North South University, Bangladesh
+          </div>
+          <div class="author-links">
+            <a class="author-link" href="https://github.com/pial17" target="_blank">GitHub</a>
+            <a class="author-link" href="https://huggingface.co/pial17" target="_blank">HuggingFace</a>
+          </div>
+        </div>
+
+        <div class="disclaimer-bar" style="margin-top:16px;">
+          ⚠️ For research and educational purposes only. Not a substitute for professional medical diagnosis. Always consult a qualified radiologist.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    XRayMind &nbsp;·&nbsp; Built by <span>Jalal Abedin</span> &nbsp;·&nbsp; North South University &nbsp;·&nbsp; DenseNet121 · Grad-CAM · LLaMA 4
+  </footer>
+
+  <script>
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>
