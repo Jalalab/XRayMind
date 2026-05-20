@@ -579,7 +579,7 @@ analyzeBtn.addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: [{ url: `data:${mimeType};base64,${base64}` }]
+        data: [`data:${mimeType};base64,${base64}`]
       })
     });
 
@@ -595,19 +595,28 @@ analyzeBtn.addEventListener('click', async () => {
 
     setStep(4, 85);
 
-    // Parse SSE response
+    // Parse SSE response — Gradio 6 format
     const lines = resultText.split('\n');
     let resultData = null;
     for (const line of lines) {
       if (line.startsWith('data:')) {
         try {
-          resultData = JSON.parse(line.slice(5).trim());
-          break;
+          const parsed = JSON.parse(line.slice(5).trim());
+          if (Array.isArray(parsed)) {
+            resultData = parsed;
+            break;
+          } else if (parsed.output && parsed.output.data) {
+            resultData = parsed.output.data;
+            break;
+          } else if (parsed.data && Array.isArray(parsed.data)) {
+            resultData = parsed.data;
+            break;
+          }
         } catch {}
       }
     }
 
-    if (!resultData) throw new Error('No result from API');
+    if (!resultData || !Array.isArray(resultData)) throw new Error('No result from API');
 
     setStep(4, 100);
 
