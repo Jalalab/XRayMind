@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XRayMind — Chest X-Ray AI Analysis</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #04080d;
+      --surface: #080f18;
+      --card: #0c1622;
+      --border: rgba(56,139,253,0.1);
+      --border-hover: rgba(56,139,253,0.3);
+      --blue: #388bfd;
+      --blue-glow: rgba(56,139,253,0.1);
+      --cyan: #39d0d8;
+      --white: #dde8f5;
+      --muted: #4a6a8a;
+      --green: #3fb950;
+      --orange: #e3b341;
+      --red: #f47067;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--white);
+      font-family: 'Syne', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(56,139,253,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56,139,253,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none; z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      top: -20%; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 600px;
+      background: radial-gradient(ellipse, rgba(56,139,253,0.06) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 16px 48px;
+      display: flex; align-items: center; justify-content: space-between;
+      backdrop-filter: blur(24px);
+      background: rgba(4,8,13,0.85);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'DM Mono', monospace; font-size: 13px;
+      color: var(--blue); letter-spacing: 0.08em;
+    }
+    .pulse {
+      width: 7px; height: 7px; background: var(--green);
+      border-radius: 50%; animation: blink 2s infinite;
+    }
+    @keyframes blink {
+      0%,100%{opacity:1;transform:scale(1)}
+      50%{opacity:0.4;transform:scale(0.8)}
+    }
+    .nav-right { display: flex; align-items: center; gap: 24px; }
+    .nav-right a {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--muted); text-decoration: none;
+      letter-spacing: 0.08em; transition: color 0.2s;
+    }
+    .nav-right a:hover { color: var(--white); }
+    .nav-btn {
+      padding: 8px 18px;
+      border: 1px solid var(--border-hover); border-radius: 4px;
+      color: var(--blue) !important; transition: all 0.2s;
+    }
+    .nav-btn:hover { background: var(--blue-glow); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ANALYZER */
+    .analyzer-section {
+      max-width: 1100px; margin: 0 auto;
+      padding: 90px 24px 60px; position: relative; z-index: 1;
+    }
+    .section-label {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); letter-spacing: 0.2em; text-transform: uppercase;
+      text-align: center; margin-bottom: 40px;
+    }
+    .analyzer-grid {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+    }
+
+    /* CARDS */
+    .card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; transition: border-color 0.3s;
+    }
+    .card:hover { border-color: var(--border-hover); }
+    .card-header {
+      padding: 14px 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+      background: rgba(8,15,24,0.6);
+    }
+    .dots { display: flex; gap: 5px; }
+    .dots span { width: 8px; height: 8px; border-radius: 50%; }
+    .dot-r { background: var(--red); }
+    .dot-y { background: var(--orange); }
+    .dot-g { background: var(--green); }
+    .card-title {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+      margin-left: 4px;
+    }
+    .card-body { padding: 20px; }
+
+    /* UPLOAD */
+    .upload-zone {
+      border: 1.5px dashed var(--border-hover); border-radius: 8px;
+      padding: 40px 20px; text-align: center; cursor: pointer;
+      transition: all 0.3s; background: rgba(56,139,253,0.02);
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--blue); background: var(--blue-glow);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+    .upload-icon { font-size: 32px; margin-bottom: 12px; display: block; }
+    .upload-text {
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      color: var(--muted); line-height: 1.7;
+    }
+    .upload-text strong { color: var(--blue); display: block; margin-bottom: 4px; }
+    #preview-img {
+      width: 100%; border-radius: 6px; display: none;
+      border: 1px solid var(--border); margin-top: 12px;
+    }
+    .analyze-btn {
+      width: 100%; margin-top: 16px; padding: 14px;
+      background: var(--blue); color: var(--bg);
+      border: none; border-radius: 6px;
+      font-family: 'Syne', sans-serif; font-weight: 700; font-size: 14px;
+      cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .analyze-btn:hover:not(:disabled) {
+      background: var(--cyan); transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(56,139,253,0.25);
+    }
+    .analyze-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(4,8,13,0.3); border-top-color: var(--bg);
+      border-radius: 50%; animation: spin 0.7s linear infinite; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status-bar {
+      display: none; align-items: center; gap: 8px;
+      padding: 10px 16px;
+      background: rgba(63,185,80,0.06);
+      border: 1px solid rgba(63,185,80,0.15);
+      border-radius: 6px; margin-top: 12px;
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--green);
+    }
+    .error-box {
+      background: rgba(243,112,103,0.05);
+      border: 1px solid rgba(243,112,103,0.2);
+      border-radius: 6px; padding: 12px 16px;
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      color: var(--red); margin-top: 12px; display: none;
+    }
+
+    /* HEATMAP */
+    #heatmap-img {
+      width: 100%; border-radius: 6px; display: none;
+      border: 1px solid var(--border);
+    }
+    .heatmap-placeholder {
+      aspect-ratio: 1; background: rgba(56,139,253,0.03);
+      border: 1.5px dashed var(--border); border-radius: 8px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 10px;
+    }
+    .heatmap-placeholder span {
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted);
+    }
+
+    /* DIAGNOSIS */
+    .diagnosis-card { grid-column: 1 / -1; }
+    .diagnosis-content {
+      display: grid; grid-template-columns: auto 1fr auto;
+      align-items: center; gap: 20px;
+    }
+    .diagnosis-icon {
+      font-size: 32px; width: 60px; height: 60px;
+      background: var(--blue-glow);
+      border: 1px solid var(--border-hover);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    }
+    .diagnosis-name {
+      font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--white);
+    }
+    .diagnosis-sub {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--muted); margin-top: 4px;
+    }
+    .prob-value {
+      font-family: 'DM Serif Display', serif; font-size: 34px; color: var(--blue);
+    }
+    .prob-label {
+      font-family: 'DM Mono', monospace; font-size: 10px;
+      color: var(--muted); display: block; letter-spacing: 0.1em; text-align: right;
+    }
+
+    /* DISEASE BARS */
+    .disease-list { display: flex; flex-direction: column; gap: 12px; }
+    .disease-item {
+      display: grid; grid-template-columns: 140px 1fr 48px;
+      align-items: center; gap: 12px;
+    }
+    .disease-name-text {
+      font-family: 'DM Mono', monospace; font-size: 11px; color: var(--white);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bar-track {
+      height: 5px; background: rgba(56,139,253,0.08);
+      border-radius: 100px; overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 100px; transition: width 0.8s ease;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+    }
+    .bar-fill.high { background: linear-gradient(90deg, var(--red), var(--orange)); }
+    .bar-fill.medium { background: linear-gradient(90deg, var(--orange), var(--blue)); }
+    .disease-pct {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--muted); text-align: right;
+    }
+
+    /* REPORT */
+    .report-section { grid-column: 1 / -1; }
+    #report-text {
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      line-height: 1.9; color: var(--muted); white-space: pre-wrap;
+    }
+    .report-placeholder {
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      color: var(--muted); text-align: center; padding: 40px 20px; line-height: 1.8;
+    }
+
+    /* LOADING OVERLAY */
+    .loading-overlay {
+      position: fixed; inset: 0;
+      background: rgba(4,8,13,0.9); backdrop-filter: blur(8px);
+      z-index: 200; display: none;
+      flex-direction: column; align-items: center; justify-content: center; gap: 20px;
+    }
+    .loading-overlay.active { display: flex; }
+    .loading-title {
+      font-family: 'DM Serif Display', serif; font-size: 26px; color: var(--white);
+    }
+    .loading-steps { display: flex; flex-direction: column; gap: 10px; width: 300px; }
+    .loading-step {
+      display: flex; align-items: center; gap: 12px;
+      font-family: 'DM Mono', monospace; font-size: 12px;
+      color: var(--muted); transition: color 0.3s;
+    }
+    .loading-step.active { color: var(--blue); }
+    .loading-step.done { color: var(--green); }
+    .loading-bar-track {
+      width: 300px; height: 2px; background: var(--border);
+      border-radius: 100px; overflow: hidden;
+    }
+    .loading-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--blue), var(--cyan));
+      border-radius: 100px; width: 0%; transition: width 0.5s ease;
+    }
+
+    /* DISCLAIMER */
+    .disclaimer-bar {
+      max-width: 1100px; margin: 0 auto 60px;
+      padding: 0 24px; position: relative; z-index: 1;
+    }
+    .disclaimer-inner {
+      background: rgba(243,112,103,0.04);
+      border: 1px solid rgba(243,112,103,0.15);
+      border-radius: 8px; padding: 14px 20px;
+      display: flex; align-items: flex-start; gap: 12px;
+    }
+    .disclaimer-inner span {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: rgba(243,112,103,0.7); line-height: 1.7;
+    }
+
+    /* FOOTER */
+    footer {
+      text-align: center; padding: 32px 48px;
+      border-top: 1px solid var(--border);
+      position: relative; z-index: 1;
+    }
+    footer p {
+      font-family: 'DM Mono', monospace; font-size: 11px;
+      color: var(--muted); line-height: 1.8;
+    }
+    footer a { color: var(--blue); text-decoration: none; }
+    footer a:hover { color: var(--cyan); }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      nav { padding: 14px 20px; }
+      .nav-right a:not(.nav-btn) { display: none; }
+      .analyzer-section { padding: 80px 16px 60px; }
+      .analyzer-grid { grid-template-columns: 1fr; }
+      .diagnosis-card, .report-section { grid-column: 1; }
+      .diagnosis-content { grid-template-columns: auto 1fr; }
+      .diagnosis-prob { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-brand">
+    <div class="pulse"></div>
+    XRAYMIND
+  </div>
+  <div class="nav-right">
+    <a href="#analyzer">Analyzer</a>
+    <a href="https://github.com/Jalalab" target="_blank">GitHub</a>
+    <a href="https://linkedin.com/in/jalal-abedin" target="_blank">LinkedIn</a>
+    <a href="https://huggingface.co/spaces/pial17/XRayMind" target="_blank" class="nav-btn">HuggingFace ↗</a>
+  </div>
+</nav>
+
+
+
+<!-- ANALYZER -->
+<section class="analyzer-section" id="analyzer">
+  <div style="text-align:center; margin-bottom: 32px; opacity:0; animation: fadeUp 0.7s 0.1s ease forwards;">
+    <h1 style="font-family:'DM Serif Display',serif; font-size:clamp(28px,3.5vw,44px); letter-spacing:-0.02em; line-height:1.1;">
+      XRayMind — <em style="font-style:italic; background:linear-gradient(135deg,var(--blue),var(--cyan)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">Chest X-Ray Analysis</em>
+    </h1>
+    <p style="font-family:'DM Mono',monospace; font-size:12px; color:var(--muted); margin-top:8px; letter-spacing:0.05em;">
+      DenseNet121 · Grad-CAM · LLaMA · Mean AUC 0.722 · 14 Pathologies
+    </p>
+  </div>
+  <div class="analyzer-grid">
+
+    <!-- Upload -->
+    <div class="card">
+      <div class="card-header">
+        <div class="dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+        <span class="card-title">Upload X-Ray</span>
+      </div>
+      <div class="card-body">
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept="image/*">
+          <span class="upload-icon">🩻</span>
+          <div class="upload-text">
+            <strong>Drop chest X-ray here</strong>
+            PNG, JPG, JPEG · PA view recommended
+          </div>
+        </div>
+        <img id="preview-img" alt="Preview">
+        <div class="error-box" id="error-box"></div>
+        <button class="analyze-btn" id="analyze-btn" disabled>
+          <div class="spinner" id="btn-spinner"></div>
+          <span id="btn-text">🔍 Analyze X-Ray</span>
+        </button>
+        <div class="status-bar" id="status-bar">
+          <span>✅</span><span id="status-text"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Heatmap -->
+    <div class="card">
+      <div class="card-header">
+        <div class="dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+        <span class="card-title">Grad-CAM Attention Map</span>
+      </div>
+      <div class="card-body">
+        <div class="heatmap-placeholder" id="heatmap-placeholder">
+          <span style="font-size:28px">🔥</span>
+          <span>Heatmap appears after analysis</span>
+          <span style="font-size:10px;letter-spacing:0.08em">Shows where model focused</span>
+        </div>
+        <img id="heatmap-img" alt="Grad-CAM">
+      </div>
+    </div>
+
+    <!-- Diagnosis -->
+    <div class="card diagnosis-card">
+      <div class="card-header">
+        <div class="dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+        <span class="card-title">Primary Diagnosis</span>
+      </div>
+      <div class="card-body">
+        <div class="diagnosis-content">
+          <div class="diagnosis-icon">🫁</div>
+          <div>
+            <div class="diagnosis-name" id="diagnosis-name">Awaiting Analysis</div>
+            <div class="diagnosis-sub" id="diagnosis-sub">Upload an X-ray and click Analyze</div>
+          </div>
+          <div>
+            <div class="prob-value" id="prob-value">—</div>
+            <span class="prob-label">CONFIDENCE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Disease Bars -->
+    <div class="card">
+      <div class="card-header">
+        <div class="dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+        <span class="card-title">Disease Probabilities</span>
+      </div>
+      <div class="card-body">
+        <div class="disease-list" id="disease-list">
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted);text-align:center;padding:20px 0">
+            Run analysis to see breakdown
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Report -->
+    <div class="card report-section">
+      <div class="card-header">
+        <div class="dots"><span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span></div>
+        <span class="card-title">AI-Generated Radiology Report</span>
+      </div>
+      <div class="card-body">
+        <div id="report-container">
+          <div class="report-placeholder">
+            📋 Radiology report will appear here<br>
+            Generated by LLaMA · Professional medical format
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- DISCLAIMER -->
+<div class="disclaimer-bar">
+  <div class="disclaimer-inner">
+    <span>⚠️</span>
+    <span>
+      <strong style="color:var(--red)">Medical Disclaimer:</strong>
+      XRayMind is a research and educational tool only.
+      NOT a certified medical device. Do NOT use for clinical diagnosis.
+      Always consult a qualified radiologist or physician.
+    </span>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <p>
+    Built by <a href="https://linkedin.com/in/jalal-abedin" target="_blank">Jalal Abedin</a>
+    &nbsp;·&nbsp; North South University, Bangladesh
+    <br>
+    <a href="https://huggingface.co/spaces/pial17/XRayMind" target="_blank">HuggingFace Space</a>
+    &nbsp;·&nbsp;
+    <a href="https://github.com/Jalalab" target="_blank">GitHub</a>
+  </p>
+</footer>
+
+<!-- LOADING OVERLAY -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="loading-title">Analyzing X-Ray...</div>
+  <div class="loading-steps">
+    <div class="loading-step active" id="step1"><span>⟳</span><span>Preprocessing image</span></div>
+    <div class="loading-step" id="step2"><span>○</span><span>Running DenseNet121</span></div>
+    <div class="loading-step" id="step3"><span>○</span><span>Generating Grad-CAM heatmap</span></div>
+    <div class="loading-step" id="step4"><span>○</span><span>Writing radiology report</span></div>
+  </div>
+  <div class="loading-bar-track">
+    <div class="loading-bar-fill" id="loading-bar"></div>
+  </div>
+  <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)">
+    This may take 30–60 seconds
+  </div>
+</div>
+
+<script>
+const HF_SPACE = "https://pial17-xraymind.hf.space";
+const API_URL  = `${HF_SPACE}/gradio_api/call/api_analyze`;
+
+let selectedFile = null;
+
+// ── File Selection ──
+const fileInput   = document.getElementById('file-input');
+const uploadZone  = document.getElementById('upload-zone');
+const previewImg  = document.getElementById('preview-img');
+const analyzeBtn  = document.getElementById('analyze-btn');
+
+fileInput.addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedFile = file;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    previewImg.src = ev.target.result;
+    previewImg.style.display = 'block';
+    uploadZone.querySelector('.upload-icon').style.display = 'none';
+    uploadZone.querySelector('.upload-text').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+  analyzeBtn.disabled = false;
+  document.getElementById('error-box').style.display = 'none';
+});
+
+// Drag & drop
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault();
+  uploadZone.classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file) { fileInput.files = e.dataTransfer.files; fileInput.dispatchEvent(new Event('change')); }
+});
+
+// ── Loading Steps ──
+function setStep(n, progress) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`step${i}`);
+    if (i < n) { el.className = 'loading-step done'; el.querySelector('span').textContent = '✓'; }
+    else if (i === n) { el.className = 'loading-step active'; }
+    else { el.className = 'loading-step'; }
+  }
+  document.getElementById('loading-bar').style.width = progress + '%';
+}
+
+// ── Analyze ──
+analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  // Show loading
+  document.getElementById('loading-overlay').classList.add('active');
+  analyzeBtn.disabled = true;
+  document.getElementById('btn-spinner').style.display = 'block';
+  document.getElementById('btn-text').textContent = 'Analyzing...';
+  document.getElementById('error-box').style.display = 'none';
+  document.getElementById('status-bar').style.display = 'none';
+
+  setStep(1, 10);
+
+  try {
+    // Convert image to base64
+    const base64 = await fileToBase64(selectedFile);
+    const mimeType = selectedFile.type || 'image/jpeg';
+
+    setStep(2, 30);
+
+    // Call HuggingFace Gradio API
+    // Step 1: Submit the job
+    const submitRes = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: [{ path: `data:${mimeType};base64,${base64}` }]
+      })
+    });
+
+    if (!submitRes.ok) throw new Error(`API error: ${submitRes.status}`);
+    const submitData = await submitRes.json();
+    const eventId = submitData.event_id;
+
+    setStep(3, 60);
+
+    // Step 2: Poll for result
+    const resultRes = await fetch(`${HF_SPACE}/gradio_api/call/api_analyze/${eventId}`);
+    const resultText = await resultRes.text();
+
+    setStep(4, 85);
+
+    // Parse SSE response
+    const lines = resultText.split('\n');
+    let resultData = null;
+    for (const line of lines) {
+      if (line.startsWith('data:')) {
+        try {
+          resultData = JSON.parse(line.slice(5).trim());
+          break;
+        } catch {}
+      }
+    }
+
+    if (!resultData) throw new Error('No result from API');
+
+    setStep(4, 100);
+
+    // ── Display Results ──
+    const [heatmapB64, predictionsJson, report, topDisease, topProb, status] = resultData;
+
+    // Heatmap
+    if (heatmapB64) {
+      const heatmapImg = document.getElementById('heatmap-img');
+      heatmapImg.src = `data:image/png;base64,${heatmapB64}`;
+      heatmapImg.style.display = 'block';
+      document.getElementById('heatmap-placeholder').style.display = 'none';
+    }
+
+    // Diagnosis
+    document.getElementById('diagnosis-name').textContent = topDisease || 'No Finding';
+    document.getElementById('diagnosis-sub').textContent = 'AI model prediction — consult a radiologist';
+    document.getElementById('prob-value').textContent = topProb ? `${(topProb * 100).toFixed(1)}%` : '—';
+
+    // Disease bars
+    try {
+      const predictions = JSON.parse(predictionsJson);
+      const diseaseList = document.getElementById('disease-list');
+      diseaseList.innerHTML = '';
+      Object.entries(predictions).slice(0, 5).forEach(([disease, prob]) => {
+        const pct = (prob * 100).toFixed(1);
+        const cls = prob >= 0.5 ? 'high' : prob >= 0.3 ? 'medium' : '';
+        diseaseList.innerHTML += `
+          <div class="disease-item">
+            <span class="disease-name-text">${disease}</span>
+            <div class="bar-track">
+              <div class="bar-fill ${cls}" style="width:${pct}%"></div>
+            </div>
+            <span class="disease-pct">${pct}%</span>
+          </div>`;
+      });
+    } catch {}
+
+    // Report — highlight section titles
+    const reportContainer = document.getElementById('report-container');
+    const formatted = (report || '').replace(
+      /(CLINICAL INDICATION:|FINDINGS:|IMPRESSION:|SEVERITY:|RECOMMENDATIONS:|DISCLAIMER:)/g,
+      '<span style="color:var(--blue);font-weight:500">$1</span>'
+    );
+    reportContainer.innerHTML = `<div id="report-text">${formatted}</div>`;
+
+    // Status
+    const statusBar = document.getElementById('status-bar');
+    document.getElementById('status-text').textContent = status || 'Analysis complete';
+    statusBar.style.display = 'flex';
+
+  } catch (err) {
+    console.error(err);
+    const errorBox = document.getElementById('error-box');
+    errorBox.textContent = `❌ ${err.message || 'Analysis failed. Please try again.'}`;
+    errorBox.style.display = 'block';
+  } finally {
+    document.getElementById('loading-overlay').classList.remove('active');
+    analyzeBtn.disabled = false;
+    document.getElementById('btn-spinner').style.display = 'none';
+    document.getElementById('btn-text').textContent = '🔍 Analyze X-Ray';
+  }
+});
+
+// ── File to base64 ──
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+</script>
+</body>
+</html>
