@@ -579,7 +579,7 @@ analyzeBtn.addEventListener('click', async () => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        data: [{ path: `data:${mimeType};base64,${base64}` }]
+        data: [`data:${mimeType};base64,${base64}`]
       })
     });
 
@@ -612,27 +612,30 @@ analyzeBtn.addEventListener('click', async () => {
     setStep(4, 100);
 
     // ── Display Results ──
-    const [heatmapB64, predictionsJson, report, topDisease, topProb, status] = resultData;
+    // gradio_analyze returns: [heatmap_img, top_finding, predictions_dict, report, status]
+    const [heatmapData, topFinding, predictions, report, status] = resultData;
 
-    // Heatmap
-    if (heatmapB64) {
+    // Heatmap — Gradio returns image as {url: "..."} object
+    if (heatmapData && heatmapData.url) {
       const heatmapImg = document.getElementById('heatmap-img');
-      heatmapImg.src = `data:image/png;base64,${heatmapB64}`;
+      heatmapImg.src = heatmapData.url;
       heatmapImg.style.display = 'block';
       document.getElementById('heatmap-placeholder').style.display = 'none';
     }
 
-    // Diagnosis
-    document.getElementById('diagnosis-name').textContent = topDisease || 'No Finding';
+    // Diagnosis — top_finding is like "Atelectasis Positive (50.7%)"
+    const diagParts = (topFinding || '').split(' Positive ');
+    const diseaseName = diagParts[0] || 'No Finding';
+    const probStr = diagParts[1] ? diagParts[1].replace(/[()%]/g, '') : '';
+    document.getElementById('diagnosis-name').textContent = diseaseName;
     document.getElementById('diagnosis-sub').textContent = 'AI model prediction — consult a radiologist';
-    document.getElementById('prob-value').textContent = topProb ? `${(topProb * 100).toFixed(1)}%` : '—';
+    document.getElementById('prob-value').textContent = probStr ? `${probStr}%` : '—';
 
-    // Disease bars
+    // Disease bars — predictions is already a dict {disease: prob}
     try {
-      const predictions = JSON.parse(predictionsJson);
       const diseaseList = document.getElementById('disease-list');
       diseaseList.innerHTML = '';
-      Object.entries(predictions).slice(0, 5).forEach(([disease, prob]) => {
+      Object.entries(predictions || {}).slice(0, 5).forEach(([disease, prob]) => {
         const pct = (prob * 100).toFixed(1);
         const cls = prob >= 0.5 ? 'high' : prob >= 0.3 ? 'medium' : '';
         diseaseList.innerHTML += `
