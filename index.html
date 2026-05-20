@@ -47,7 +47,7 @@
       background: radial-gradient(ellipse, rgba(56,139,253,0.06) 0%, transparent 70%);
       pointer-events: none; z-index: 0;
     }
-
+ 
     /* NAV */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
@@ -83,12 +83,12 @@
       color: var(--blue) !important; transition: all 0.2s;
     }
     .nav-btn:hover { background: var(--blue-glow); }
-
+ 
     @keyframes fadeUp {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
-
+ 
     /* ANALYZER */
     .analyzer-section {
       max-width: 1100px; margin: 0 auto;
@@ -102,7 +102,7 @@
     .analyzer-grid {
       display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
     }
-
+ 
     /* CARDS */
     .card {
       background: var(--card); border: 1px solid var(--border);
@@ -125,7 +125,7 @@
       margin-left: 4px;
     }
     .card-body { padding: 20px; }
-
+ 
     /* UPLOAD */
     .upload-zone {
       border: 1.5px dashed var(--border-hover); border-radius: 8px;
@@ -184,7 +184,7 @@
       font-family: 'DM Mono', monospace; font-size: 12px;
       color: var(--red); margin-top: 12px; display: none;
     }
-
+ 
     /* HEATMAP */
     #heatmap-img {
       width: 100%; border-radius: 6px; display: none;
@@ -199,7 +199,7 @@
     .heatmap-placeholder span {
       font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted);
     }
-
+ 
     /* DIAGNOSIS */
     .diagnosis-card { grid-column: 1 / -1; }
     .diagnosis-content {
@@ -226,7 +226,7 @@
       font-family: 'DM Mono', monospace; font-size: 10px;
       color: var(--muted); display: block; letter-spacing: 0.1em; text-align: right;
     }
-
+ 
     /* DISEASE BARS */
     .disease-list { display: flex; flex-direction: column; gap: 12px; }
     .disease-item {
@@ -251,7 +251,7 @@
       font-family: 'DM Mono', monospace; font-size: 11px;
       color: var(--muted); text-align: right;
     }
-
+ 
     /* REPORT */
     .report-section { grid-column: 1 / -1; }
     #report-text {
@@ -262,7 +262,7 @@
       font-family: 'DM Mono', monospace; font-size: 12px;
       color: var(--muted); text-align: center; padding: 40px 20px; line-height: 1.8;
     }
-
+ 
     /* LOADING OVERLAY */
     .loading-overlay {
       position: fixed; inset: 0;
@@ -291,7 +291,7 @@
       background: linear-gradient(90deg, var(--blue), var(--cyan));
       border-radius: 100px; width: 0%; transition: width 0.5s ease;
     }
-
+ 
     /* DISCLAIMER */
     .disclaimer-bar {
       max-width: 1100px; margin: 0 auto 60px;
@@ -307,7 +307,7 @@
       font-family: 'DM Mono', monospace; font-size: 11px;
       color: rgba(243,112,103,0.7); line-height: 1.7;
     }
-
+ 
     /* FOOTER */
     footer {
       text-align: center; padding: 32px 48px;
@@ -320,7 +320,7 @@
     }
     footer a { color: var(--blue); text-decoration: none; }
     footer a:hover { color: var(--cyan); }
-
+ 
     /* RESPONSIVE */
     @media (max-width: 768px) {
       nav { padding: 14px 20px; }
@@ -334,7 +334,7 @@
   </style>
 </head>
 <body>
-
+ 
 <!-- NAV -->
 <nav>
   <div class="nav-brand">
@@ -348,9 +348,9 @@
     <a href="https://huggingface.co/spaces/pial17/XRayMind" target="_blank" class="nav-btn">HuggingFace ↗</a>
   </div>
 </nav>
-
-
-
+ 
+ 
+ 
 <!-- ANALYZER -->
 <section class="analyzer-section" id="analyzer">
   <div style="text-align:center; margin-bottom: 32px; opacity:0; animation: fadeUp 0.7s 0.1s ease forwards;">
@@ -362,7 +362,7 @@
     </p>
   </div>
   <div class="analyzer-grid">
-
+ 
     <!-- Upload -->
     <div class="card">
       <div class="card-header">
@@ -389,7 +389,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Heatmap -->
     <div class="card">
       <div class="card-header">
@@ -405,7 +405,7 @@
         <img id="heatmap-img" alt="Grad-CAM">
       </div>
     </div>
-
+ 
     <!-- Diagnosis -->
     <div class="card diagnosis-card">
       <div class="card-header">
@@ -426,7 +426,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Disease Bars -->
     <div class="card">
       <div class="card-header">
@@ -441,7 +441,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- Report -->
     <div class="card report-section">
       <div class="card-header">
@@ -457,10 +457,10 @@
         </div>
       </div>
     </div>
-
+ 
   </div>
 </section>
-
+ 
 <!-- DISCLAIMER -->
 <div class="disclaimer-bar">
   <div class="disclaimer-inner">
@@ -473,7 +473,7 @@
     </span>
   </div>
 </div>
-
+ 
 <!-- FOOTER -->
 <footer>
   <p>
@@ -485,7 +485,7 @@
     <a href="https://github.com/Jalalab" target="_blank">GitHub</a>
   </p>
 </footer>
-
+ 
 <!-- LOADING OVERLAY -->
 <div class="loading-overlay" id="loading-overlay">
   <div class="loading-title">Analyzing X-Ray...</div>
@@ -502,19 +502,19 @@
     This may take 30–60 seconds
   </div>
 </div>
-
+ 
 <script>
 const HF_SPACE = "https://pial17-xraymind.hf.space";
 const API_URL  = `${HF_SPACE}/gradio_api/call/api_analyze`;
-
+ 
 let selectedFile = null;
-
+ 
 // ── File Selection ──
 const fileInput   = document.getElementById('file-input');
 const uploadZone  = document.getElementById('upload-zone');
 const previewImg  = document.getElementById('preview-img');
 const analyzeBtn  = document.getElementById('analyze-btn');
-
+ 
 fileInput.addEventListener('change', e => {
   const file = e.target.files[0];
   if (!file) return;
@@ -530,7 +530,7 @@ fileInput.addEventListener('change', e => {
   analyzeBtn.disabled = false;
   document.getElementById('error-box').style.display = 'none';
 });
-
+ 
 // Drag & drop
 uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('dragover'); });
 uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
@@ -540,7 +540,7 @@ uploadZone.addEventListener('drop', e => {
   const file = e.dataTransfer.files[0];
   if (file) { fileInput.files = e.dataTransfer.files; fileInput.dispatchEvent(new Event('change')); }
 });
-
+ 
 // ── Loading Steps ──
 function setStep(n, progress) {
   for (let i = 1; i <= 4; i++) {
@@ -551,11 +551,11 @@ function setStep(n, progress) {
   }
   document.getElementById('loading-bar').style.width = progress + '%';
 }
-
+ 
 // ── Analyze ──
 analyzeBtn.addEventListener('click', async () => {
   if (!selectedFile) return;
-
+ 
   // Show loading
   document.getElementById('loading-overlay').classList.add('active');
   analyzeBtn.disabled = true;
@@ -563,16 +563,16 @@ analyzeBtn.addEventListener('click', async () => {
   document.getElementById('btn-text').textContent = 'Analyzing...';
   document.getElementById('error-box').style.display = 'none';
   document.getElementById('status-bar').style.display = 'none';
-
+ 
   setStep(1, 10);
-
+ 
   try {
     // Convert image to base64
     const base64 = await fileToBase64(selectedFile);
     const mimeType = selectedFile.type || 'image/jpeg';
-
+ 
     setStep(2, 30);
-
+ 
     // Call HuggingFace Gradio API
     // Step 1: Submit the job
     const submitRes = await fetch(API_URL, {
@@ -582,13 +582,13 @@ analyzeBtn.addEventListener('click', async () => {
         data: [{ url: `data:${mimeType};base64,${base64}` }]
       })
     });
-
+ 
     if (!submitRes.ok) throw new Error(`API error: ${submitRes.status}`);
     const submitData = await submitRes.json();
     const eventId = submitData.event_id;
-
+ 
     setStep(3, 60);
-
+ 
     // Step 2: Stream SSE result using EventSource
     const resultData = await new Promise((resolve, reject) => {
       const evtSource = new EventSource(
@@ -614,16 +614,16 @@ analyzeBtn.addEventListener('click', async () => {
         reject(new Error('Request timed out — please try again'));
       }, 180000);
     });
-
+ 
     setStep(4, 100);
-
+ 
     // ── Display Results ──
     // api_analyze returns: [heatmap, predictions_json, report, top_disease, top_prob, status]
     const [heatmapB64, predictionsJson, report, topDisease, topProbRaw, status] = resultData;
-
+ 
     // Parse top probability — could be string or number
     const topProb = typeof topProbRaw === 'number' ? topProbRaw : parseFloat(topProbRaw) || 0;
-
+ 
     // Heatmap — Gradio returns {path: '/tmp/gradio/...'} or base64
     if (heatmapB64) {
       const heatmapImg = document.getElementById('heatmap-img');
@@ -635,12 +635,12 @@ analyzeBtn.addEventListener('click', async () => {
       heatmapImg.style.display = 'block';
       document.getElementById('heatmap-placeholder').style.display = 'none';
     }
-
+ 
     // Diagnosis
     document.getElementById('diagnosis-name').textContent = topDisease || 'No Finding';
     document.getElementById('diagnosis-sub').textContent = 'AI model prediction — consult a radiologist';
     document.getElementById('prob-value').textContent = topProb ? `${(topProb * 100).toFixed(1)}%` : '—';
-
+ 
     // Disease bars — predictions may be JSON string or dict object
     try {
       const predictions = typeof predictionsJson === 'string'
@@ -661,7 +661,7 @@ analyzeBtn.addEventListener('click', async () => {
           </div>`;
       });
     } catch {}
-
+ 
     // Report — highlight section titles
     const reportContainer = document.getElementById('report-container');
     const formatted = (report || '').replace(
@@ -669,12 +669,12 @@ analyzeBtn.addEventListener('click', async () => {
       '<span style="color:var(--blue);font-weight:500">$1</span>'
     );
     reportContainer.innerHTML = `<div id="report-text">${formatted}</div>`;
-
+ 
     // Status
     const statusBar = document.getElementById('status-bar');
     document.getElementById('status-text').textContent = status || 'Analysis complete';
     statusBar.style.display = 'flex';
-
+ 
   } catch (err) {
     console.error(err);
     const errorBox = document.getElementById('error-box');
@@ -687,7 +687,7 @@ analyzeBtn.addEventListener('click', async () => {
     document.getElementById('btn-text').textContent = '🔍 Analyze X-Ray';
   }
 });
-
+ 
 // ── File to base64 ──
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -700,3 +700,4 @@ function fileToBase64(file) {
 </script>
 </body>
 </html>
+ 
